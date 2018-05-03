@@ -21,9 +21,9 @@ namespace ContosoUniversity.Controllers
         public async Task<IActionResult> Index(string sortOrder, string currentFilter, string searchString, int? page)
         {
             ViewData["CurrentSort"] = sortOrder;
-            ViewData["NameSortParam"] = string.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
-            ViewData["DateSortParam"] = sortOrder == "Date" ? "date_desc" : "Date";
-            
+            ViewData["NameSortParam"] = string.IsNullOrEmpty(sortOrder) ? "LastName_desc" : "";
+            ViewData["DateSortParam"] = sortOrder == "EnrollmentDate" ? "EnrollmentDate_desc" : "EnrollmentDate";
+
             if (searchString != null)
             {
                 page = 1;
@@ -42,21 +42,22 @@ namespace ContosoUniversity.Controllers
                                                || s.FirstMidName.ToLower().Contains(searchString.ToLower()));
             }
 
-            switch (sortOrder)
+            if (string.IsNullOrEmpty(sortOrder))
             {
-                case "name_desc":
-                    students = students.OrderByDescending(s => s.LastName);
-                    break;
-                case "Date":
-                    students = students.OrderBy(s => s.EnrollmentDate);
-                    break;
-                case "date_desc":
-                    students = students.OrderByDescending(s => s.EnrollmentDate);
-                    break;
-                default:
-                    students = students.OrderBy(s => s.LastName);
-                    break;
+                sortOrder = "LastName";
             }
+
+            var descending = false;
+
+            if (sortOrder.EndsWith("_desc"))
+            {
+                sortOrder = sortOrder.Substring(0, sortOrder.Length - 5);
+                descending = true;
+            }
+
+            students = descending
+                ? students.OrderByDescending(e => EF.Property<object>(e, sortOrder))
+                : students.OrderBy(e => EF.Property<object>(e, sortOrder));
 
             const int pageSize = 5;
 
@@ -215,11 +216,6 @@ namespace ContosoUniversity.Controllers
             {
                 return RedirectToAction(nameof(Delete), new {id, SaveChangesError = true});
             }
-        }
-
-        private bool StudentExists(int id)
-        {
-            return _context.Students.Any(e => e.Id == id);
         }
     }
 }
